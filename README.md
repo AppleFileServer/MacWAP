@@ -4,9 +4,12 @@ A private WAP gateway for a Nokia 7110, running on a Raspberry Pi 3 with a
 SIM800C GSM HAT. The phone texts (or calls) the Pi from anywhere; the Pi
 answers with WAP pages it stores or builds from the internet.
 
-**Status (13 November 2026):** files prepared, nothing installed on the Pi
-yet. The HAT and its SIM are on order. Whether the link will be text
-messages or a data call is to be decided by test.
+**Status (13 November 2026):** the WAP side is installed and running on
+the Pi: Kannel fetches the home deck from the page server and compiles it
+(718 bytes of WML become 317 bytes), checked with `tools/wapget.py`. The
+text-message side is not enabled: the HAT and its SIM are on order.
+Whether the link will be text messages or a data call is to be decided by
+test.
 
 ## How it works
 
@@ -30,6 +33,7 @@ messages or a data call is to be decided by test.
 | `deploy/wapserver.py`, `*.service` | Page server and systemd units |
 | `deploy/www/` | The WML decks |
 | `build-wap-over-sms.sh` | Builds wap-over-sms for the Pi into `deploy/` |
+| `tools/wapget.py` | Fetches a page through the gateway as a phone would (run on the Pi) |
 
 `vendor/` and the built `deploy/wap-over-sms` are not tracked.
 
@@ -42,7 +46,6 @@ messages or a data call is to be decided by test.
 ## Still to do
 
 - Restrict the gateway to the owner's phone number before enabling texts.
-- Install on the Pi and test Kannel's configuration.
 - Test whether the network passes the binary messages.
 
 ## Licence

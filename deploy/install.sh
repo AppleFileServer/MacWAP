@@ -28,8 +28,12 @@ base)
     ADMIN=$(rand)
     sed "s/@ADMIN_PASSWORD@/$ADMIN/" kannel.conf > /etc/kannel/kannel.conf
     [ -e /etc/kannel/sms.conf ] || : > /etc/kannel/sms.conf
-    chown root:kannel /etc/kannel/kannel.conf /etc/kannel/sms.conf
-    chmod 640 /etc/kannel/kannel.conf /etc/kannel/sms.conf
+    # Keep the SMS side on if it was already enabled.
+    [ -s /etc/kannel/sms.conf ] && sed -i 's/^#smsbox-port/smsbox-port/' /etc/kannel/kannel.conf
+    # Kannel runs as user "kannel" with no group of its own, so the files
+    # belong to that user and nobody else can read them.
+    chown kannel:root /etc/kannel/kannel.conf /etc/kannel/sms.conf
+    chmod 600 /etc/kannel/kannel.conf /etc/kannel/sms.conf
 
     # Debian starts the wapbox only when asked to.
     if [ -e /etc/default/kannel ]; then
@@ -47,7 +51,8 @@ enable-sms)
     TOKEN=$(rand); PASS=$(rand)
     sed -e "s/@MODEM_NUMBER@/$NUMBER/" -e "s/@SENDSMS_PASSWORD@/$PASS/" -e "s/@TOKEN@/$TOKEN/" \
         sms.conf.hat > /etc/kannel/sms.conf
-    chown root:kannel /etc/kannel/sms.conf; chmod 640 /etc/kannel/sms.conf
+    chown kannel:root /etc/kannel/sms.conf; chmod 600 /etc/kannel/sms.conf
+    sed -i 's/^#smsbox-port/smsbox-port/' /etc/kannel/kannel.conf
     umask 077
     printf 'MODEM_NUMBER=%s\nSENDSMS_PASSWORD=%s\nTOKEN=%s\n' "$NUMBER" "$PASS" "$TOKEN" > /etc/wapgateway/sms.env
     chown root:root /etc/wapgateway/sms.env

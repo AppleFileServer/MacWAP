@@ -1,0 +1,4 @@
+.DS_Store
+# Third-party source (github.com/bevelgacom/wap-over-sms) and the binary built from it
+vendor/
+deploy/wap-over-sms

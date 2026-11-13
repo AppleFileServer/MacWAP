@@ -1,0 +1,46 @@
+# SMS side of the gateway. NOT active until copied to /etc/kannel/sms.conf
+# (install.sh enable-sms does this once the SIM800C HAT is fitted).
+# UNTESTED: written from the Kannel and wap-over-sms documentation before
+# the hardware arrived. Expect to adjust the modem group.
+
+group = smsc
+smsc = at
+smsc-id = hat
+modemtype = sim800
+device = /dev/serial0
+speed = 115200
+# The HAT SIM's own number, international format.
+my-number = "@MODEM_NUMBER@"
+sim-buffering = true
+log-file = "/var/log/kannel/smsc-hat.log"
+log-level = 1
+
+group = modems
+id = sim800
+name = "SIMCom SIM800C"
+detect-string = "SIM800"
+# PDU mode; deliver incoming messages straight to the serial port.
+init-string = "AT+CMGF=0;+CNMI=2,2,0,0,0"
+message-storage = "SM"
+need-sleep = true
+
+group = smsbox
+bearerbox-host = 127.0.0.1
+sendsms-port = 13014
+log-file = "/var/log/kannel/smsbox.log"
+log-level = 1
+
+group = sendsms-user
+username = wapsms
+password = @SENDSMS_PASSWORD@
+user-allow-ip = "127.0.0.1"
+user-deny-ip = "*.*.*.*"
+
+# Every incoming message is handed to wap-over-sms.
+group = sms-service
+keyword = default
+post-url = "http://127.0.0.1:8089/kannel?token=@TOKEN@"
+send-sender = 1
+max-messages = 0
+catch-all = true
+omit-empty = true

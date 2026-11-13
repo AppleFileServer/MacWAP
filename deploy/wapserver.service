@@ -1,0 +1,14 @@
+[Unit]
+Description=WAP page server (WML for the Nokia 7110)
+After=network.target
+
+[Service]
+User=wapgw
+ExecStart=/usr/bin/python3 /opt/wapgateway/wapserver.py
+Restart=on-failure
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

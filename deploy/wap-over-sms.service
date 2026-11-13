@@ -1,0 +1,24 @@
+[Unit]
+Description=WAP over SMS relay between Kannel smsbox and wapbox
+After=network.target kannel.service
+Wants=kannel.service
+
+[Service]
+User=wapgw
+EnvironmentFile=/etc/wapgateway/sms.env
+ExecStart=/opt/wapgateway/wap-over-sms serve \
+    --listen-addr 127.0.0.1:8089 \
+    --wapbox-host 127.0.0.1 \
+    --smsbox-host 127.0.0.1:13014 \
+    --smsbox-username wapsms \
+    --smsbox-password ${SENDSMS_PASSWORD} \
+    --smsbox-sender-msn ${MODEM_NUMBER} \
+    --smsc hat \
+    --token ${TOKEN}
+Restart=on-failure
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

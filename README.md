@@ -4,10 +4,11 @@ A private WAP gateway for a Nokia 7110, running on a Raspberry Pi 3 with a
 SIM800C GSM HAT. The phone texts (or calls) the Pi from anywhere; the Pi
 answers with WAP pages it stores or builds from the internet.
 
-**Status (13 November 2026):** the WAP side is installed and running on
+**Status (14 November 2026):** the WAP side is installed and running on
 the Pi: Kannel fetches the home deck from the page server and compiles it
 (718 bytes of WML become 317 bytes), checked with `tools/wapget.py`. The
-text-message side is not enabled: the HAT and its SIM are on order.
+text-message side is not enabled: the HAT is fitted and its modem answers
+on the serial port, but its SIM has not arrived.
 Whether the link will be text messages or a data call is to be decided by
 test.
 
@@ -27,12 +28,13 @@ test.
 
 | Path | What it is |
 |---|---|
-| `deploy/install.sh` | Run on the Pi as root: `base`, later `enable-sms +44...` |
+| `deploy/install.sh` | Run on the Pi as root: `base`, later `enable-sms HAT-NUMBER PHONE-NUMBER` |
 | `deploy/kannel.conf` | Kannel core and WAP settings |
 | `deploy/sms.conf.hat` | Modem and text-message settings (untested) |
 | `deploy/wapserver.py`, `*.service` | Page server and systemd units |
 | `deploy/www/` | The WML decks |
 | `build-wap-over-sms.sh` | Builds wap-over-sms for the Pi into `deploy/` |
+| `docs/LIMITS.md` | What the phone and the link can carry, and how to design for it |
 | `tools/wapget.py` | Fetches a page through the gateway as a phone would (run on the Pi) |
 
 `vendor/` and the built `deploy/wap-over-sms` are not tracked.
@@ -45,7 +47,9 @@ test.
 
 ## Still to do
 
-- Restrict the gateway to the owner's phone number before enabling texts.
+- Test the allow-list: `enable-sms` restricts the gateway to one phone
+  number (Kannel `white-list-sender-regex`); confirm a text from any other number
+  is discarded.
 - Test whether the network passes the binary messages.
 
 ## Licence

@@ -36,9 +36,10 @@ password = @SENDSMS_PASSWORD@
 user-allow-ip = "127.0.0.1"
 user-deny-ip = "*.*.*.*"
 
-# Every incoming message is handed to wap-over-sms.
+# Every incoming message from the owner's phone is handed to wap-over-sms.
 group = sms-service
 keyword = default
+white-list-regex = "@ALLOWED_REGEX@"
 post-url = "http://127.0.0.1:8089/kannel?token=@TOKEN@"
 send-sender = 1
 max-messages = 0

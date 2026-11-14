@@ -30,6 +30,18 @@ class Handler(http.server.SimpleHTTPRequestHandler):
             self.path = "/index.wml"
         super().do_GET()
 
+    # Every reply header Kannel sees is passed on to the phone, and over
+    # text messages each byte counts. Leave out Server and Date (about 36
+    # bytes) and Last-Modified (6 bytes); the phone needs none of them.
+    def send_response(self, code, message=None):
+        self.log_request(code)
+        self.send_response_only(code, message)
+
+    def send_header(self, keyword, value):
+        if keyword.lower() == "last-modified":
+            return
+        super().send_header(keyword, value)
+
     def end_headers(self):
         # The 7110 caches aggressively; ask it not to.
         self.send_header("Cache-Control", "no-cache")

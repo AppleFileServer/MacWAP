@@ -4,13 +4,17 @@ A private WAP gateway for a Nokia 7110, running on a Raspberry Pi 3 with a
 SIM800C GSM HAT. The phone texts (or calls) the Pi from anywhere; the Pi
 answers with WAP pages it stores or builds from the internet.
 
-**Status (14 November 2026):** the WAP side is installed and running on
-the Pi: Kannel fetches the home deck from the page server and compiles it
-(718 bytes of WML become 317 bytes), checked with `tools/wapget.py`. The
-text-message side is not enabled: the HAT is fitted and its modem answers
-on the serial port, but its SIM has not arrived.
-Whether the link will be text messages or a data call is to be decided by
-test.
+**Status (14 November 2026):** the WAP side is built and verified on the
+Pi — Kannel compiles the decks, and a genuine 7110 request (captured in
+an emulator) replayed through the gateway returns the live Today deck —
+but it cannot run over the current SIMs: the current network
+refuses, when sent, any message carrying the 16-bit port header that WAP
+over text messages depends on. The WAP decks are kept for a future route.
+In its place a **plain-SMS command service** is live: the phone texts a
+short command (`w`, `n`, `t`, `c`, `m`, …) and gets ordinary texts back,
+sharing its data with the decks. See `docs/SERVICES.md`, section 7, for
+the commands and `docs/LIMITS.md`, section 12, for the bearer tests. Data
+calls are not possible with this HAT.
 
 ## How it works
 
@@ -32,6 +36,9 @@ test.
 | `deploy/kannel.conf` | Kannel core and WAP settings |
 | `deploy/sms.conf.hat` | Modem and text-message settings (untested) |
 | `deploy/wapserver.py`, `*.service` | Page server and systemd units |
+| `deploy/wapsms.py` | Sorts incoming texts: WAP requests relayed, commands from the allowed phone answered, everything else to an inbox |
+| `deploy/smscmd.py` | The plain-SMS command service (`w`, `n`, `t`, `c`, `m`, …); shares data with the decks |
+| `deploy/wapapp.py` | Decks built at request time: Today, Calories, Cash |
 | `deploy/wapfetch.py`, `wapfetch.timer` | Prepares the decks (weather, news, Today) every 15 minutes |
 | `deploy/services.conf.example` | Settings for the above: places, feeds |
 | `docs/SERVICES.md` | The services planned and built |
@@ -50,10 +57,13 @@ test.
 
 ## Still to do
 
-- Test the allow-list: `enable-sms` restricts the gateway to one phone
-  number (Kannel `white-list-sender-regex`); confirm a text from any other number
-  is discarded.
-- Test whether the network passes the binary messages.
+- Extend the plain-SMS service (`deploy/smscmd.py`): bus times, mail
+  subjects, alerts, Ask.
+- For the kept WAP route: a SIM on a network that carries the 16-bit
+  header, or phone firmware that uses the 8-bit header (the analysis is
+  in the private notes).
+- Test the allow-list in `wapsms.py` with a WAP request from another
+  number, once WAP requests can arrive at all.
 
 ## Licence
 

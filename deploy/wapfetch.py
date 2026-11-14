@@ -8,7 +8,7 @@ gateway allows about 3 seconds per request; nothing may be fetched at
 request time.
 
 Decks written:
-    index.wml   Today: date, weather in two lines, menu
+    index.wml   Today, as a fallback (wapapp.py builds the live one)
     w.wml       Weather: a card per place, then the days ahead
     n.wml       News headlines (BBC)
     ns.wml      The first stories with their summaries
@@ -238,17 +238,25 @@ def news_decks(items, stamp, source):
 
 # ------------------------------------------------------------------ today
 
-def today_deck(now, places, weather, items):
+def today_deck(now, places, weather, items, kcal=None, texts=False):
+    """The home deck. Built at request time by wapapp.py, which knows the
+    calorie total; written here too as a plain file to fall back on."""
     lines = [now.strftime("%a %d %b %H:%M")]
     if weather:
         c, d = weather[0]["current"], weather[0]["daily"]
         lines.append(f"{places[0][0]} {deg(c['temperature_2m'])}C {sky(c['weather_code'])}")
         lines.append(day_line(d, 0, "Today"))
+    if kcal:
+        lines.append(f"{kcal} kcal so far")
     body = "<br/>".join(wml(x) for x in lines)
     if weather:
         body += '<br/><a href="w">Weather</a>'
     if items:
         body += '<br/><a href="n">News</a>'
+    if kcal is not None:
+        body += '<br/><a href="c">Calories</a><br/><a href="m">Cash</a>'
+    if texts:
+        body += '<br/><a href="i">Texts</a>'
     return deck([("t", "Today", body)])
 
 

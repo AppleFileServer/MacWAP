@@ -6,7 +6,17 @@ freely. Started 14 November 2026.
 **Built so far (14 November 2026):** Today, Weather and News (BBC),
 prepared every 15 minutes by `deploy/wapfetch.py` and measured through
 the gateway: Today 140 bytes (2 texts back), Weather 393 (4), News
-headlines 447 (5), News summaries 741 (7). Not yet seen on the phone.
+headlines 447 (5), News summaries 741 (7).
+
+Also built that day, in `deploy/wapapp.py` (decks made at request time
+from files on the Pi): Calories and Cash, each a form deck of 3 texts
+with every add, undo and clear answered in 1 text; and the Today deck
+now shows the calorie total and links to both (2 texts).
+
+None of it has been seen on the phone yet. To check there first: that
+the phone fills the typed values into the address, that a description
+with spaces arrives intact, and that it fetches a form afresh each time
+instead of showing a stored copy.
 
 Sizes and message counts follow `LIMITS.md`. "Texts" means messages out
 from the phone + messages back from the Pi, per fetch, and all are
@@ -36,17 +46,18 @@ the Plus needs.
 |---|---|---|---|---|
 | Weather | Built | Two places (home and town), a card each: today, tonight, tomorrow, then a 3-day outlook; rain chance, temperature, wind, sunrise and sunset | 1 + 4 | Prepared hourly. Sources researched, section 4 |
 | News | Built (BBC); Guardian wanted, awaiting a key | Six to eight headlines; each links to a two-sentence summary in the same deck if it fits, otherwise a second fetch | 1 + 5 | Prepared every 15 to 30 minutes. Sources researched, section 4 |
-| Mail | Wanted | Subjects of new messages only (with the sender's name if it fits) | 1 + 3 | Uses the mail gateway already on the Pi; to be agreed with that project. Never bodies |
+| Mail | Wanted | Subjects of new messages; open one to read the start of its text. Any verification code in a new message is shown first, on its own line, so a code sent by email can be read when away from home | 1 + 3; a message 1 + 3 | Uses the mail gateway already on the Pi; to be agreed with that project. Replies go only to the owner's phone |
+| Texts | Built | The latest ordinary texts received by the Pi's own SIM (network notices, verification codes) | 1 + 2 | Kept in an inbox file by `deploy/wapsms.py`; never answered |
 | Ask | Wanted | Type a short question; get a summarised answer | 1 + 1, then 1 or 2 plain texts back | See section 3a |
 
 ### Personal
 
 | Service | Status | What the phone does | Texts | Notes |
 |---|---|---|---|---|
-| Calories: add | Wanted | Enter a number of calories, optionally pick a meal; the reply confirms and shows today's total | 1 + 1 | Home side is MacTrack (Open, section 3) |
-| Calories: view | Wanted | Today's total and what is left of the target; the last seven days | 1 + 2 | Needs MacTrack's figures to reach the Pi (Open) |
-| Cash: add | Wanted | Enter a short description and an amount in pence (650 for 6.50, 6500 for 65.00); the reply confirms | 1 + 1 | A log of its own on the Pi. No categories. Not sent to MacMoney, which records only the total cash held |
-| Cash: view | Wanted | The latest entries and the total spent since the log was last cleared; a "clear" action for when the cash figure in MacMoney has been brought up to date | 1 + 2 | Cash only. No balances or totals of worth |
+| Calories: add | Built | Enter a number of calories, optionally pick a meal; the reply confirms and shows today's total | 1 + 1 | Home side is MacTrack (Open, section 3) |
+| Calories: view | Built (phone entries only) | Today's total and the last seven days, on the same deck as the entry field | 1 + 3 | Shows what was entered from the phone; MacTrack's figures are not included (Open). No target yet |
+| Cash: add | Built | Enter a short description and an amount in pence (650 for 6.50, 6500 for 65.00); the reply confirms | 1 + 1 | A log of its own on the Pi. No categories. Not sent to MacMoney, which records only the total cash held |
+| Cash: view | Built | The latest entries and the total spent since the log was last cleared; a "clear" action for when the cash figure in MacMoney has been brought up to date | 1 + 2 | Cash only. No balances or totals of worth |
 | Bus times: timetable | Wanted | Next four departures for each of the saved journeys, both directions (three services of two operators; details in the private file) | 1 + 2 | Prepared daily from published timetables, so always instant |
 | Bus times: live | Wanted | The same, with live predictions where available | 1 + 2 | Sources researched, section 4; needs an application to a data provider |
 
@@ -81,8 +92,10 @@ the Plus needs.
    and each "add" deck offers "Undo last".
 6. **Amounts are whole numbers.** The phone's number editor has no
    decimal point, so money is entered in pence (450 for 4.50).
-7. **Nothing sensitive on a page.** Messages have only the network's own
-   protection: no passwords, account numbers or message bodies.
+7. **Little that is sensitive on a page.** Messages have only the
+   network's own protection: no passwords or account numbers. Mail and
+   verification codes are shown at the owner's request; they are sent
+   only to the owner's phone and only when asked for.
 
 ## 3. Open: the home side of calories
 
@@ -182,3 +195,62 @@ Both could be offered as separate menu entries.
 ## 6. Ideas waiting
 
 (Add new ideas here.)
+
+## 7. Two ways the phone reaches the services
+
+The same services can be delivered over two bearers.
+
+**WAP (the decks).** The phone's own browser fetches WML decks through the
+gateway. This is the richer interface (menus, forms, soft keys). It is
+built and proven on the Pi end — a genuine 7110 request, captured in an
+emulator and replayed through the gateway, returns the live Today deck —
+but it cannot run over the current SIMs: the current network
+refuses, at submission, any message carrying the 16-bit application-port
+header that WAP needs in both directions (`LIMITS.md` §12). The decks
+(`wapapp.py`, `wapfetch.py`, `wapserver.py`) are **kept** for a future
+route — a SIM on a network that passes the header, or patched phone
+firmware that uses the 8-bit header instead.
+
+**Plain-SMS commands (live).** The phone texts a short command to the
+Pi's SIM and gets one or two ordinary texts back. Ordinary texts travel
+on the present SIMs in about five seconds each way, and they work abroad.
+This shares its data with the decks: a calorie or cash entry made by text
+is the same journal the WAP side reads. Built 14 November 2026 in
+`deploy/smscmd.py`, handled inside `deploy/wapsms.py`, replies sent
+through Kannel's `sendsms`.
+
+| Command | Does | Reply |
+|---|---|---|
+| `w` | Weather for the home place | 1 text |
+| `n` | Latest BBC headlines | up to 2 texts |
+| `t` or blank | Today: time, weather, calories so far | 1 text |
+| `c` | Calories today | 1 text |
+| `c 250` | Add 250 kcal | 1 text |
+| `c undo` | Remove the last entry made today | 1 text |
+| `m` | Cash total and last entry | 1 text |
+| `m 650 bus` | Add £6.50 described "bus" | 1 text |
+| `m undo` | Remove the last cash entry | 1 text |
+| `help` / `?` | The command list | 1 text |
+
+Only the allowed phone's commands are answered; every other text (carrier
+notices, verification codes, other numbers) still goes to the inbox
+unanswered. Clearing the cash log is deliberately not a text command;
+it stays on the WAP side where it asks for confirmation.
+
+Still to add as plain-SMS commands:
+
+- **Bus times** for the saved journeys.
+- **Email reading** — new subjects, and a verification code out and about
+  (the main reason the owner wants it). A text back with the subject and
+  the start of the body, or the code.
+- **Email sending** — e.g. `email to@addr Subject — body`. This does the
+  job the 7110's dead "Email" message type once did (a flag the network's
+  gateway acted on); here the Pi sends a genuine email instead, with the
+  phone on message type Text. The phone's Fax/Email send types are
+  obsolete network services and are not used.
+- **Alerts** by text.
+- **Ask** (short, summarised answers).
+
+Email read and send depend on the Pi's mail gateway (a separate project):
+to be done through an interface it offers, not by reading its files or
+credentials, and agreed with that side first.

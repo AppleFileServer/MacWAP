@@ -1,7 +1,5 @@
 # SMS side of the gateway. NOT active until copied to /etc/kannel/sms.conf
 # (install.sh enable-sms does this once the SIM800C HAT is fitted).
-# UNTESTED: written from the Kannel and wap-over-sms documentation before
-# the hardware arrived. Expect to adjust the modem group.
 
 group = smsc
 smsc = at
@@ -19,8 +17,17 @@ group = modems
 id = sim800
 name = "SIMCom SIM800C"
 detect-string = "SIM800"
-# PDU mode; deliver incoming messages straight to the serial port.
-init-string = "AT+CMGF=0;+CNMI=2,2,0,0,0"
+# The HAT connects only the two data lines, so there is no RTS/CTS
+# handshake. Both of these are needed. Without the first, Kannel waits
+# for ever to send. Without the second, Kannel tells the modem to use the
+# handshake (its default is AT+IFC=2,2), and the modem then falls silent
+# until it is switched off and on.
+hardware-flow-control = false
+enable-hwhs = "AT+IFC=0,0"
+# Incoming messages are stored on the SIM and announced; Kannel then
+# reads and deletes them (sim-buffering above), so none is lost while
+# Kannel is not running.
+init-string = "AT+CNMI=2,1,0,0,0;+CMEE=1"
 message-storage = "SM"
 need-sleep = true
 
@@ -36,11 +43,12 @@ password = @SENDSMS_PASSWORD@
 user-allow-ip = "127.0.0.1"
 user-deny-ip = "*.*.*.*"
 
-# Every incoming message from the owner's phone is handed to wap-over-sms.
+# Every incoming message goes to wapsms.py, which passes WAP requests
+# from the allowed phone on to wap-over-sms and files ordinary texts in
+# an inbox. An empty answer means no reply is sent.
 group = sms-service
 keyword = default
-white-list-regex = "@ALLOWED_REGEX@"
-post-url = "http://127.0.0.1:8089/kannel?token=@TOKEN@"
+post-url = "http://127.0.0.1:8090/in?token=@TOKEN@"
 send-sender = 1
 max-messages = 0
 catch-all = true

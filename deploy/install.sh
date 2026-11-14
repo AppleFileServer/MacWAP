@@ -21,6 +21,7 @@ base)
 
     install -d /opt/wapgateway /srv/wap /etc/wapgateway
     install -m 755 wapserver.py wapfetch.py wap-over-sms /opt/wapgateway/
+    install -m 644 wapapp.py /opt/wapgateway/
     # The decks are written by wapfetch (user wapgw). www/ holds only a
     # fallback home deck for a Pi with no settings yet.
     [ -e /srv/wap/index.wml ] || cp -r www/. /srv/wap/
@@ -67,17 +68,17 @@ enable-sms)
     case "$DIGITS" in 44*) ALLOWED="$ALLOWED|^0${DIGITS#44}\$" ;; esac
     TOKEN=$(rand); PASS=$(rand)
     sed -e "s/@MODEM_NUMBER@/$NUMBER/" -e "s/@SENDSMS_PASSWORD@/$PASS/" -e "s/@TOKEN@/$TOKEN/" \
-        -e "s#@ALLOWED_REGEX@#$ALLOWED#" \
         sms.conf.hat > /etc/kannel/sms.conf
     chown kannel:root /etc/kannel/sms.conf; chmod 600 /etc/kannel/sms.conf
     sed -i 's/^#smsbox-port/smsbox-port/' /etc/kannel/kannel.conf
-    # A kannel.conf written by an older "base" has no allow-list line yet.
-    grep -q 'white-list-sender-regex' /etc/kannel/kannel.conf || \
-        sed -i '/^#\?smsbox-port/a #white-list-sender-regex = ""' /etc/kannel/kannel.conf
-    sed -i "s#^\#\?white-list-sender-regex = .*#white-list-sender-regex = \"$ALLOWED\"#" /etc/kannel/kannel.conf
-    grep -q '^white-list-sender-regex = "^' /etc/kannel/kannel.conf || { echo 'allow-list not set in kannel.conf; stopping' >&2; exit 1; }
+    # The allow-list is applied by wapsms.py (see its header), not by
+    # Kannel, so that ordinary texts from other senders reach the inbox.
+    sed -i '/white-list-sender-regex/d' /etc/kannel/kannel.conf
+    install -m 755 wapsms.py /opt/wapgateway/
+    install -m 644 smscmd.py /opt/wapgateway/
+    install -m 644 wapsms.service wap-over-sms.service /etc/systemd/system/
     umask 077
-    printf 'MODEM_NUMBER=%s\nSENDSMS_PASSWORD=%s\nTOKEN=%s\n' "$NUMBER" "$PASS" "$TOKEN" > /etc/wapgateway/sms.env
+    printf "MODEM_NUMBER=%s\nSENDSMS_PASSWORD=%s\nTOKEN=%s\nALLOWED='%s'\n" "$NUMBER" "$PASS" "$TOKEN" "$ALLOWED" > /etc/wapgateway/sms.env
     chown root:root /etc/wapgateway/sms.env
     if [ -e /etc/default/kannel ]; then
         # The modem's serial port belongs to group dialout.
@@ -85,8 +86,10 @@ enable-sms)
         sed -i 's/^#\?START_SMSBOX=.*/START_SMSBOX=1/' /etc/default/kannel
         grep -q '^START_SMSBOX=1' /etc/default/kannel || echo 'START_SMSBOX=1' >> /etc/default/kannel
     fi
+    systemctl daemon-reload
+    systemctl enable wapsms.service wap-over-sms.service
+    systemctl restart wapsms.service wap-over-sms.service
     systemctl restart kannel
-    systemctl enable --now wap-over-sms.service
     echo "SMS side enabled for $NUMBER; accepting texts from $PHONE only"
     ;;
 *)

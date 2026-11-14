@@ -1,0 +1,16 @@
+[Unit]
+Description=Sort incoming texts for the WAP gateway (WAP requests, inbox)
+After=network.target
+
+[Service]
+User=wapgw
+EnvironmentFile=/etc/wapgateway/sms.env
+ExecStart=/usr/bin/python3 /opt/wapgateway/wapsms.py
+StateDirectory=wapgateway
+Restart=on-failure
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+
+[Install]
+WantedBy=multi-user.target

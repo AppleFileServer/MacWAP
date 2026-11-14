@@ -329,3 +329,46 @@ most of the Estimates above into facts:
    one.
 9. Whether a 128-byte part size works.
 10. Whether a two-part request (a long posted field) arrives intact.
+
+## 12. First tests with the modem (14 November 2026)
+
+Measured with the HAT's SIM on the network these SIMs use, sending test
+messages from the Pi's SIM to itself with the modem's own commands.
+
+| Message sent | Result |
+|---|---|
+| Ordinary 7-bit text | Accepted; arrived in about 5 seconds |
+| 8-bit data, no header | Accepted; arrived |
+| 16-bit (Unicode) text | Accepted; arrived |
+| 8-bit data with a joining (concatenation) header | Accepted; arrived |
+| 8-bit data with an 8-bit port header (element 04) | Accepted; arrived |
+| 8-bit data with a **16-bit port header (element 05)**, any port numbers | **Refused by the network when sent** (error 28) |
+
+WAP over text messages needs the 16-bit port header in both directions:
+the phone puts it on every request (to port 9200) and the gateway on
+every reply. The phone's first request, made the same afternoon, never
+reached the Pi, which fits. **On this network the WAP-over-SMS link does
+not work**, through no fault of the gateway. Everything up to the radio
+is built and verified.
+
+Also found:
+
+- **Data calls are not possible with this HAT.** The SIM800C refuses the
+  command that sets up a data call (`AT+CBST`), and a data call dialled
+  from it ends at once. The data-call bearer would need a different
+  modem as well as a network that still carries such calls.
+- **Kannel and this HAT:** the modem group needs
+  `hardware-flow-control = false` and `enable-hwhs = "AT+IFC=0,0"`.
+  Otherwise Kannel switches on a handshake the HAT has no wires for and
+  the modem falls silent until switched off and on.
+- **Ordinary texts work well both ways,** including joined long texts
+  coming in. A plain-text service (a short command in, one or two texts
+  back) would work on this network today.
+
+Ways forward, cheapest first:
+
+1. Offer the services as ordinary text commands on the present SIMs.
+2. Try SIMs from other networks in the HAT. The six-message test above
+   takes a minute and shows at once whether a network accepts the 16-bit
+   port header. Both the phone's SIM and the Pi's would have to be on
+   networks that do.

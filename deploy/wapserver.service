@@ -9,6 +9,8 @@ Restart=on-failure
 NoNewPrivileges=true
 ProtectSystem=strict
 ProtectHome=true
+# The calorie and cash journals live here (shared with wapfetch).
+StateDirectory=wapgateway
 
 [Install]
 WantedBy=multi-user.target

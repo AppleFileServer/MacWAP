@@ -28,6 +28,10 @@ class Handler(http.server.SimpleHTTPRequestHandler):
     def do_GET(self):
         if self.path in ("", "/"):
             self.path = "/index.wml"
+        elif "." not in self.path.rsplit("/", 1)[-1] and "?" not in self.path:
+            # Short addresses: /w is /w.wml. Every byte of an address
+            # travels in the request.
+            self.path += ".wml"
         super().do_GET()
 
     # Every reply header Kannel sees is passed on to the phone, and over

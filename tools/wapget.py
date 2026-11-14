@@ -52,4 +52,8 @@ if __name__ == "__main__":
     status, headers, body = wap_get(sys.argv[1], sys.argv[2])
     # WSP status 0x20 is HTTP 200.
     print(f"status 0x{status:02x}  headers {headers.hex()}  body {len(body)} bytes")
+    # The whole reply datagram, and the text messages it needs at the
+    # 110 bytes per message that wap-over-sms uses.
+    total = 4 + len(headers) + len(body)
+    print(f"reply {total} bytes = {1 if total <= 110 else -(-total // 110)} text(s)")
     print(body[:48].hex())

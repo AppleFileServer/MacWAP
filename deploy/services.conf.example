@@ -1,0 +1,16 @@
+# Settings for wapfetch.py. Copy to /etc/wapgateway/services.conf on the
+# Pi and edit there; the real file holds your own places and is not kept
+# in this repository.
+
+[general]
+timezone = Europe/London
+
+[weather]
+# Name, latitude, longitude. The name is a card title: keep it short.
+# place2 is optional.
+place1 = Greenwich, 51.4779, -0.0015
+place2 = Edinburgh, 55.9533, -3.1883
+
+[news]
+# An RSS feed of headlines. Leave empty for no news deck.
+bbc = https://feeds.bbci.co.uk/news/rss.xml

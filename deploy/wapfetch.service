@@ -1,0 +1,14 @@
+[Unit]
+Description=Prepare the WAP decks (weather, news, Today)
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+User=wapgw
+ExecStart=/usr/bin/python3 /opt/wapgateway/wapfetch.py
+StateDirectory=wapgateway
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/srv/wap

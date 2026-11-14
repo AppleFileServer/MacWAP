@@ -32,7 +32,10 @@ test.
 | `deploy/kannel.conf` | Kannel core and WAP settings |
 | `deploy/sms.conf.hat` | Modem and text-message settings (untested) |
 | `deploy/wapserver.py`, `*.service` | Page server and systemd units |
-| `deploy/www/` | The WML decks |
+| `deploy/wapfetch.py`, `wapfetch.timer` | Prepares the decks (weather, news, Today) every 15 minutes |
+| `deploy/services.conf.example` | Settings for the above: places, feeds |
+| `docs/SERVICES.md` | The services planned and built |
+| `deploy/www/` | A fallback home deck for a Pi with no settings yet |
 | `build-wap-over-sms.sh` | Builds wap-over-sms for the Pi into `deploy/` |
 | `docs/LIMITS.md` | What the phone and the link can carry, and how to design for it |
 | `tools/wapget.py` | Fetches a page through the gateway as a phone would (run on the Pi) |

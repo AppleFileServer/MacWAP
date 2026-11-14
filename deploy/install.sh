@@ -20,9 +20,16 @@ base)
     id wapgw >/dev/null 2>&1 || useradd --system --no-create-home --shell /usr/sbin/nologin wapgw
 
     install -d /opt/wapgateway /srv/wap /etc/wapgateway
-    install -m 755 wapserver.py wap-over-sms /opt/wapgateway/
-    cp -r www/. /srv/wap/
-    install -m 644 wapserver.service wap-over-sms.service /etc/systemd/system/
+    install -m 755 wapserver.py wapfetch.py wap-over-sms /opt/wapgateway/
+    # The decks are written by wapfetch (user wapgw). www/ holds only a
+    # fallback home deck for a Pi with no settings yet.
+    [ -e /srv/wap/index.wml ] || cp -r www/. /srv/wap/
+    chown -R wapgw: /srv/wap
+    install -m 644 wapserver.service wap-over-sms.service wapfetch.service wapfetch.timer /etc/systemd/system/
+    if [ ! -e /etc/wapgateway/services.conf ]; then
+        install -m 640 -g wapgw services.conf.example /etc/wapgateway/services.conf
+        echo "NOTE: edit /etc/wapgateway/services.conf (places for the weather)"
+    fi
 
     # Keep the packaged configuration the first time only.
     [ -e /etc/kannel/kannel.conf.dist ] || cp /etc/kannel/kannel.conf /etc/kannel/kannel.conf.dist
@@ -44,6 +51,8 @@ base)
 
     systemctl daemon-reload
     systemctl enable --now wapserver.service
+    systemctl enable --now wapfetch.timer
+    systemctl start wapfetch.service || echo "wapfetch failed; see: journalctl -u wapfetch"
     systemctl restart kannel
     echo "base install done"
     ;;

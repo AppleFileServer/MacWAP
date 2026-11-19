@@ -37,7 +37,8 @@ calls are not possible with this HAT.
 | `deploy/sms.conf.hat` | Modem and text-message settings (untested) |
 | `deploy/wapserver.py`, `*.service` | Page server and systemd units |
 | `deploy/wapsms.py` | Sorts incoming texts: WAP requests relayed, commands from the allowed phone answered, everything else to an inbox |
-| `deploy/smscmd.py` | The plain-SMS command service (`w`, `n`, `t`, `c`, `m`, …); shares data with the decks |
+| `deploy/smscmd.py` | The plain-SMS command service (`w`, `w Berlin`, `n`, `t`, `c`, `m`, …); shares data with the decks |
+| `tests/test_weather.py` | Offline check of the weather command (no network needed) |
 | `deploy/wapapp.py` | Decks built at request time: Today, Calories, Cash |
 | `deploy/wapfetch.py`, `wapfetch.timer` | Prepares the decks (weather, news, Today) every 15 minutes |
 | `deploy/services.conf.example` | Settings for the above: places, feeds |

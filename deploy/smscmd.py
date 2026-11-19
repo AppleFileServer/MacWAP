@@ -11,6 +11,9 @@ wapapp.py uses, so an entry made by text shows up on the WAP side too.
 
 Commands (the first word; case does not matter):
     w                weather for the home place
+    w Berlin         weather for any town, looked up as you ask
+                     (w St Helens AU: a country code picks between
+                     towns of the same name)
     n                the latest news headlines
     t   (or blank)   today: time, weather, calories so far
     c                calories today        c 250   add 250
@@ -28,6 +31,9 @@ message as several), and at most two are sent for one command.
 import datetime
 import json
 import os
+import time
+import unicodedata
+import urllib.parse
 
 import wapapp
 import wapfetch as wf
@@ -60,12 +66,18 @@ def _amount(args, hi):
                  if a.isdigit() and 0 < int(a) <= hi), None)
 
 
-def _weather_data():
+def _weather_all():
+    """The prepared weather: one entry per configured place, or []."""
     try:
         with open(wapapp._path("weather.json")) as f:
-            return json.load(f)["data"][0]
-    except (OSError, ValueError, KeyError, IndexError):
-        return None
+            return json.load(f)["data"]
+    except (OSError, ValueError, KeyError):
+        return []
+
+
+def _weather_data():
+    data = _weather_all()
+    return data[0] if data else None
 
 
 def _place():
@@ -73,16 +85,128 @@ def _place():
     return value.split(",")[0].strip()
 
 
-def weather(_args):
-    w = _weather_data()
-    if not w:
-        return ["Weather not available yet."]
+def _conf_places():
+    """Names of the configured places, in the order of the prepared data."""
+    conf = wapapp._conf()
+    names = []
+    for key in ("place1", "place2"):
+        value = conf.get("weather", key, fallback="")
+        if value:
+            names.append(value.split(",")[0].strip())
+    return names
+
+
+def _weather_line(name, w):
     c, d = w["current"], w["daily"]
-    line = (f"{_place()} now {wf.deg(c['temperature_2m'])}C "
+    return (f"{name} now {wf.deg(c['temperature_2m'])}C "
             f"{wf.sky(c['weather_code'])}, {wf.compass(c['wind_direction_10m'])} "
             f"{round(c['wind_speed_10m'])}mph. "
             f"{wf.day_line(d, 0, 'Today')}. {wf.day_line(d, 1, 'Tmrw')}")
-    return [fit(line)]
+
+
+# Weather for a named town is fetched when asked for. A text reply is not
+# held to the WAP gateway's three seconds, so there is time: about a second
+# for the two requests below. Both are Open-Meteo services and need no key.
+GEOCODE = "https://geocoding-api.open-meteo.com/v1/search?"
+FORECAST = "https://api.open-meteo.com/v1/forecast?"
+NET_TIMEOUT = 8              # seconds for each request
+FRESH = 20 * 60              # a looked-up forecast is reused for this long
+COUNTRY_ALIAS = {"UK": "GB"}
+_found = {}                  # folded query -> (name, country, lat, lon)
+_fetched = {}                # (lat, lon) -> (time, forecast)
+
+
+def _fold(text):
+    """Accents removed, so a name can be compared and sent as a text."""
+    flat = unicodedata.normalize("NFKD", text)
+    return "".join(c for c in flat if not unicodedata.combining(c))
+
+
+def _search(name, count):
+    q = urllib.parse.urlencode({"name": name, "count": count,
+                                "language": "en", "format": "json"})
+    reply = json.loads(wf.http_get(GEOCODE + q, timeout=NET_TIMEOUT))
+    return reply.get("results") or []
+
+
+def _find_place(query):
+    """(name, country code, latitude, longitude) for a town, or None when
+    there is no such place. A network failure raises."""
+    key = _fold(query).lower()
+    if key in _found:
+        return _found[key]
+    hit = None
+    words = query.split()
+    if len(words) > 1 and len(words[-1]) == 2 and words[-1].isalpha():
+        # "St Helens AU": the search itself does not understand a country
+        # code, so ask for the name alone and pick the match in that country.
+        country = COUNTRY_ALIAS.get(words[-1].upper(), words[-1].upper())
+        for r in _search(" ".join(words[:-1]), 10):
+            if r.get("country_code") == country:
+                hit = r
+                break
+    if hit is None:
+        results = _search(query, 1)
+        hit = results[0] if results else None
+    if hit is None:
+        return None
+    place = (hit["name"], hit.get("country_code", ""),
+             hit["latitude"], hit["longitude"])
+    if len(_found) > 500:
+        _found.clear()
+    _found[key] = place
+    return place
+
+
+def _forecast(country, lat, lon):
+    key = (lat, lon)
+    kept = _fetched.get(key)
+    if kept and time.monotonic() - kept[0] < FRESH:
+        return kept[1]
+    fields = {
+        "latitude": lat, "longitude": lon,
+        "current": "temperature_2m,weather_code,wind_speed_10m,wind_direction_10m",
+        "daily": "weather_code,temperature_2m_max,temperature_2m_min,"
+                 "precipitation_probability_max",
+        "timezone": "auto",          # today and tomorrow by the place's clock
+        "wind_speed_unit": "mph", "forecast_days": "2",
+    }
+    if country == "GB":
+        fields["models"] = "ukmo_seamless"   # as for the home place
+    w = json.loads(wf.http_get(FORECAST + urllib.parse.urlencode(fields),
+                               timeout=NET_TIMEOUT))
+    if w.get("error"):
+        raise RuntimeError(w.get("reason", "weather service error"))
+    if len(_fetched) > 100:
+        _fetched.clear()
+    _fetched[key] = (time.monotonic(), w)
+    return w
+
+
+def weather(args):
+    query = " ".join(args or []).strip(" .,;:!?")[:40]
+    if not query:
+        w = _weather_data()
+        if not w:
+            return ["Weather not available yet."]
+        return [fit(_weather_line(_place(), w))]
+    # A configured place is answered from the prepared file: no waiting,
+    # and it works when the internet does not.
+    data = _weather_all()
+    for i, name in enumerate(_conf_places()):
+        if _fold(name).lower() == _fold(query).lower() and i < len(data):
+            return [fit(_weather_line(name, data[i]))]
+    shown = plain(_fold(query))
+    try:
+        place = _find_place(query)
+        if place is None:
+            return [fit(f"No place found called {shown}.")]
+        name, country, lat, lon = place
+        w = _forecast(country, lat, lon)
+        label = f"{plain(_fold(name))[:24]} {country}".strip()
+        return [fit(_weather_line(label, w))]
+    except Exception:
+        return [fit(f"Weather for {shown} not available just now.")]
 
 
 def news(_args):
@@ -175,7 +299,7 @@ def cash(args):
 
 
 def help_(_args):
-    return ["MacWAP: w weather, n news, t today, c calories (c 250 add, c undo), "
+    return ["MacWAP: w weather (w Berlin), n news, t today, c calories (c 250 add, c undo), "
             "m cash (m 650 bus, m undo)."]
 
 
@@ -192,8 +316,10 @@ COMMANDS = {
 # Data-entry commands may be chained in one message. A new command starts
 # at each of these keywords; a query command (w, n, t, help) is not a split
 # point, because it is more likely a word in a cash note ("m 300 t shirt").
-# A ';' or a new line forces a split anywhere.
+# A ';' or a new line forces a split anywhere. A weather command keeps all
+# its words, as a place name may contain one of the keywords.
 ENTRY = {"c", "cal", "calories", "m", "cash", "money"}
+WHOLE = {"w", "weather"}
 
 
 def _split_commands(text):
@@ -206,7 +332,8 @@ def _split_commands(text):
                 groups.append(cur)
                 cur = []
             continue
-        if cur and raw.strip(".,:;").lower() in ENTRY:
+        if (cur and raw.strip(".,:;").lower() in ENTRY
+                and cur[0].strip(".,:;").lower() not in WHOLE):
             groups.append(cur)
             cur = [raw]
         else:

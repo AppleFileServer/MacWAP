@@ -222,6 +222,9 @@ through Kannel's `sendsms`.
 | Command | Does | Reply |
 |---|---|---|
 | `w` | Weather for the home place | 1 text |
+| `w edinburgh` | A configured place by name, from the prepared file | 1 text |
+| `w Berlin` | Weather for any town, looked up when asked | 1 text |
+| `w St Helens AU` | A two-letter country code picks between towns of the same name | 1 text |
 | `n` | Latest BBC headlines | up to 2 texts |
 | `t` or blank | Today: time, weather, calories so far | 1 text |
 | `c` | Calories today | 1 text |
@@ -231,6 +234,15 @@ through Kannel's `sendsms`.
 | `m 650 bus` | Add £6.50 described "bus" | 1 text |
 | `m undo` | Remove the last cash entry | 1 text |
 | `help` / `?` | The command list | 1 text |
+
+`w` with a town name is the one command that uses the internet at the
+moment of asking (a text reply is not held to the WAP gateway's three
+seconds). The town is found with Open-Meteo's place search (no key), the
+first match wins, and the reply names the town and its country so a wrong
+match shows. Towns outside the United Kingdom use Open-Meteo's own choice
+of forecast model, and "today" and "tomorrow" follow the town's clock.
+Postcodes are not understood. Added 19 November 2026; checked offline by
+`tests/test_weather.py`.
 
 Only the allowed phone's commands are answered; every other text (carrier
 notices, verification codes, other numbers) still goes to the inbox

@@ -238,7 +238,7 @@ def news_decks(items, stamp, source):
 
 # ------------------------------------------------------------------ today
 
-def today_deck(now, places, weather, items, kcal=None, texts=False):
+def today_deck(now, places, weather, items, kcal=None, texts=False, gym=False):
     """The home deck. Built at request time by wapapp.py, which knows the
     calorie total; written here too as a plain file to fall back on."""
     lines = [now.strftime("%a %d %b %H:%M")]
@@ -255,6 +255,8 @@ def today_deck(now, places, weather, items, kcal=None, texts=False):
         body += '<br/><a href="n">News</a>'
     if kcal is not None:
         body += '<br/><a href="c">Calories</a><br/><a href="m">Cash</a>'
+    if gym:
+        body += '<br/><a href="g">Gym</a>'
     if texts:
         body += '<br/><a href="i">Texts</a>'
     return deck([("t", "Today", body)])
@@ -294,7 +296,8 @@ def main():
             write("n.wml", headlines)
             write("ns.wml", stories)
 
-    write("index.wml", today_deck(now, places, weather, items))
+    gym = os.path.exists(os.path.join(OUT, "gymqr.wbmp"))
+    write("index.wml", today_deck(now, places, weather, items, gym=gym))
 
 
 if __name__ == "__main__":

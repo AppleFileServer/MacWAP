@@ -14,3 +14,13 @@ place2 = Edinburgh, 55.9533, -3.1883
 [news]
 # An RSS feed of headlines. Leave empty for no news deck.
 bbc = https://feeds.bbci.co.uk/news/rss.xml
+
+[mactrack]
+# Where to mirror the calorie log for MacTrack to import, a folder on the
+# shared drive (served over FTP now, AppleTalk later). Leave blank to turn
+# the feed off. The folder must be writable by the wapgw service user and
+# readable by the FTP/AFP login; install.sh's enable-mactrack creates it.
+# The file written is "calories.txt" (Mac text, CR line ends). See
+# docs/MACTRACK-FEED.md for the format. Blank = off; the usual folder is
+# /srv/macshare/MacTrack Link, set for you by install.sh enable-mactrack.
+feed_dir =

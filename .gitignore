@@ -5,3 +5,5 @@ deploy/wap-over-sms
 private/
 __pycache__/
 *.pyc
+# Access codes / personal images — deployed to the Pi, never committed
+*.wbmp

@@ -42,6 +42,7 @@ calls are not possible with this HAT.
 | `deploy/wapfetch.py`, `wapfetch.timer` | Prepares the decks (weather, news, Today) every 15 minutes |
 | `deploy/services.conf.example` | Settings for the above: places, feeds |
 | `docs/SERVICES.md` | The services planned and built |
+| `docs/MACTRACK-FEED.md` | The calorie-log file format MacTrack imports |
 | `deploy/www/` | A fallback home deck for a Pi with no settings yet |
 | `build-wap-over-sms.sh` | Builds wap-over-sms for the Pi into `deploy/` |
 | `docs/LIMITS.md` | What the phone and the link can carry, and how to design for it |

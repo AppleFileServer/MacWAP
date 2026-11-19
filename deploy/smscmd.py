@@ -19,6 +19,9 @@ Commands (the first word; case does not matter):
                                             m undo  remove the last entry
     help  or  ?      this list
 
+Several entries can go in one message: "c 654 bites. c 250 pigs" logs
+both, and the number may sit before or after its label.
+
 Every reply is kept inside one text message (the 7110 shows a long
 message as several), and at most two are sent for one command.
 """
@@ -48,6 +51,13 @@ def plain(text):
 
 def fit(text, limit=LIMIT):
     return plain(text)[:limit]
+
+
+def _amount(args, hi):
+    """Index of the first whole-number token in args within 1..hi, or None.
+    Lets a label sit before or after it (c 654 bites, c bites 654)."""
+    return next((i for i, a in enumerate(args)
+                 if a.isdigit() and 0 < int(a) <= hi), None)
 
 
 def _weather_data():
@@ -120,16 +130,15 @@ def calories(args):
     if not args:
         return [f"Calories today: {wapapp.kcal_today()} kcal. (c 250 to add, c undo)"]
     if args[0].lower() == "undo":
-        rows = wapapp._read("calories.tsv")
-        today_iso = wapapp._now().date().isoformat()
-        if not rows or rows[-1][0][:10] != today_iso:
+        last = wapapp.cal_undo(today_only=True)
+        if last is None:
             return ["Nothing entered today."]
-        last = rows.pop()
-        wapapp._write("calories.tsv", rows)
-        return [f"Removed {last[1]}. Today {wapapp.kcal_today()} kcal"]
-    if args[0].isdigit() and 0 < int(args[0]) <= 9999:
-        k = int(args[0])
-        wapapp._append("calories.tsv", [wapapp._now().isoformat(sep=" "), str(k)])
+        return [f"Removed {last[3]}. Today {wapapp.kcal_today()} kcal"]
+    idx = _amount(args, 9999)       # amount may sit before or after a label
+    if idx is not None:
+        k = int(args[idx])
+        label = " ".join(args[:idx] + args[idx + 1:]).strip(" .,;")[:40]
+        wapapp.cal_add(k, label)
         return [f"Added {k}. Today {wapapp.kcal_today()} kcal"]
     return ["Calories: c (today), c 250 (add), c undo."]
 
@@ -156,9 +165,10 @@ def cash(args):
         wapapp._write("cash.tsv", rows)
         what = last[2] if len(last) > 2 else ""
         return _cash_reply(f"Removed {what} £{wapapp.money(int(last[1]))}.")
-    if args[0].isdigit() and 0 < int(args[0]) <= 999999:
-        pence = int(args[0])
-        what = " ".join(args[1:])[:24] or "-"
+    idx = _amount(args, 999999)
+    if idx is not None:             # amount anywhere; the rest is the note
+        pence = int(args[idx])
+        what = " ".join(args[:idx] + args[idx + 1:]).strip(" .,;")[:24] or "-"
         wapapp._append("cash.tsv", [wapapp._now().isoformat(sep=" "), str(pence), what])
         return _cash_reply(f"Added {what} £{wapapp.money(pence)}.")
     return ["Cash: m (total), m 650 bus (add 6.50), m undo."]
@@ -179,11 +189,35 @@ COMMANDS = {
 }
 
 
-def handle(text):
-    """Return the reply messages for a command text (always at least one,
-    capped at two). The sender has already been checked as allowed."""
-    parts = (text or "").split()
-    word = parts[0].lower() if parts else ""
+# Data-entry commands may be chained in one message. A new command starts
+# at each of these keywords; a query command (w, n, t, help) is not a split
+# point, because it is more likely a word in a cash note ("m 300 t shirt").
+# A ';' or a new line forces a split anywhere.
+ENTRY = {"c", "cal", "calories", "m", "cash", "money"}
+
+
+def _split_commands(text):
+    """Split one message into its separate commands.
+    'C 654 Bites. C 250 Pigs' -> [['C','654','Bites.'], ['C','250','Pigs']]."""
+    groups, cur = [], []
+    for raw in (text or "").replace("\n", " ; ").replace(";", " ; ").split():
+        if raw == ";":
+            if cur:
+                groups.append(cur)
+                cur = []
+            continue
+        if cur and raw.strip(".,:;").lower() in ENTRY:
+            groups.append(cur)
+            cur = [raw]
+        else:
+            cur.append(raw)
+    if cur:
+        groups.append(cur)
+    return groups or [[]]
+
+
+def _run(parts):
+    word = parts[0].strip(".,:;").lower() if parts else ""
     fn = COMMANDS.get(word)
     if fn is None:
         return help_(None)
@@ -192,6 +226,21 @@ def handle(text):
     except Exception:                     # never leave the phone unanswered
         return ["Sorry, that failed."]
     return [fit(m) for m in replies[:MAX_REPLIES]]
+
+
+def handle(text):
+    """Return the reply messages for a command text (always at least one).
+    One message may hold several chained commands; each is run in turn, and
+    at most two texts go back. The sender has already been checked."""
+    groups = _split_commands(text)
+    if len(groups) == 1:
+        return _run(groups[0])
+    replies = []
+    for g in groups:
+        replies.extend(_run(g))
+    if len(replies) > MAX_REPLIES:        # keep the most recent, incl. final total
+        replies = replies[-MAX_REPLIES:]
+    return [fit(m) for m in replies]
 
 
 if __name__ == "__main__":          # quick local check: smscmd.py "w"

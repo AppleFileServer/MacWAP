@@ -6,6 +6,12 @@
 #   sudo ./install.sh enable-sms HAT PHONE  add the SMS side (HAT fitted).
 #       HAT   = the HAT SIM's number, e.g. +447700900123
 #       PHONE = the one phone allowed to use the gateway, same format
+#   sudo ./install.sh enable-mactrack [DIR]  mirror the calorie log to the
+#       shared drive for MacTrack. DIR defaults to "/srv/macshare/MacTrack
+#       Link"; the shared drive (the Pi-gateway side) must already exist.
+#   sudo ./install.sh enable-gym FILE.wbmp   install a gym-entry QR image so
+#       a "Gym" card shows on the menu. FILE is a 1-bit WBMP; it is an
+#       access code, so it lives only on the Pi, never in the repository.
 #
 # "base" changes nothing about the Pi's serial port and starts no modem.
 set -euo pipefail
@@ -92,6 +98,34 @@ enable-sms)
     systemctl restart kannel
     echo "SMS side enabled for $NUMBER; accepting texts from $PHONE only"
     ;;
+enable-mactrack)
+    DIR="${2:-/srv/macshare/MacTrack Link}"
+    PARENT=$(dirname "$DIR")
+    [ -d "$PARENT" ] || { echo "shared folder '$PARENT' not found; set up the Pi drive first" >&2; exit 1; }
+    # Owned by the service user so it can write; world-readable so the FTP
+    # and AppleTalk logins can fetch it. The file itself is 0644.
+    install -d -o wapgw -g wapgw -m 755 "$DIR"
+    CONF=/etc/wapgateway/services.conf
+    [ -e "$CONF" ] || { echo "$CONF missing; run 'base' first" >&2; exit 1; }
+    if grep -q '^[[:space:]]*feed_dir' "$CONF"; then
+        # address uses /…/ (feed_dir has no slash), substitution uses #…#
+        # (the path has slashes) — portable across GNU and BSD sed.
+        sed -i "/^[[:space:]]*feed_dir/s#.*#feed_dir = $DIR#" "$CONF"
+    else
+        printf '\n[mactrack]\nfeed_dir = %s\n' "$DIR" >> "$CONF"
+    fi
+    chown root:wapgw "$CONF"; chmod 640 "$CONF"
+    systemctl restart wapsms.service 2>/dev/null || echo "(enable the SMS side to start writing the feed)"
+    echo "MacTrack feed -> $DIR"
+    ;;
+enable-gym)
+    SRC="${2:?give the path to the gym QR .wbmp}"
+    [ -f "$SRC" ] || { echo "file not found: $SRC" >&2; exit 1; }
+    install -d -o wapgw -g wapgw -m 755 /srv/wap
+    install -m 644 -o wapgw -g wapgw "$SRC" /srv/wap/gymqr.wbmp
+    systemctl start wapfetch.service 2>/dev/null || true   # refresh the fallback menu
+    echo "gym QR installed; a 'Gym' card now shows on the Today menu"
+    ;;
 *)
-    sed -n '2,11p' "$0"; exit 1 ;;
+    sed -n '2,16p' "$0"; exit 1 ;;
 esac

@@ -135,5 +135,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     os.makedirs(STATE, exist_ok=True)
+    try:                              # make sure the MacTrack feed exists
+        smscmd.wapapp.refresh_feed()
+    except Exception as e:
+        print("wapsms: feed refresh failed:", type(e).__name__, file=sys.stderr)
     print(f"wapsms: listening on {HOST}:{PORT}", file=sys.stderr)
     http.server.ThreadingHTTPServer((HOST, PORT), Handler).serve_forever()
